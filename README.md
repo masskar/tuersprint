@@ -9,7 +9,9 @@ Playable compartments are chosen automatically: every compartment the SDK report
 | Param | Default | Range | Meaning |
 |---|---|---|---|
 | `time` | 60 | 10..600 | game length in seconds |
-| `parallel` | 2 | 1..3 | doors open at once |
+| `parallel` | 3 | 1..8 | doors open at once at the start |
+| `maxparallel` | 6 | parallel..8 | most doors open at once (ramp ceiling; also capped at playable − 1) |
+| `step` | 5 | 1..100 | points per extra open door (ramp) |
 | `boxes` | all eligible | list/ranges `2-10,12`, or `all` | optional restriction (still intersected with enabled non-Master compartments) |
 | `minopen` | 400 | 0..5000 | ms a door must have been open to count (calibration knob for real locks) |
 | `stuck` | 4000 | 500..60000 | ms to wait for the OPEN event after an open command, then the door is dropped (no point) |
@@ -18,7 +20,7 @@ Playable compartments are chosen automatically: every compartment the SDK report
 | `languages` | - | e.g. `de,en` | set by the kiosk; DE \| EN toggle if both are listed (or absent) |
 | `debug` | off | 1 | logs lock events to the console |
 
-Invalid values are clamped. Example: `?time=45&parallel=2&boxes=1-12&lang=en`
+Invalid values are clamped. Example: `?time=45&parallel=3&maxparallel=5&boxes=1-12&lang=en`
 
 A box whose `openCompartment` throws is dropped for the rest of the game (console.error with the box number only); if fewer than `parallel` boxes remain, the game ends with the staff screen.
 

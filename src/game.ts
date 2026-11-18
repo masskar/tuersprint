@@ -3,7 +3,9 @@ export type Boxes = string[] | "all" | null; // null = param missing/invalid = n
 
 export interface Params {
 	time: number; // seconds
-	parallel: number; // doors open at once
+	parallel: number; // doors open at once at the start
+	maxparallel: number; // ramp ceiling
+	step: number; // points per extra open door
 	boxes: Boxes;
 	minopen: number; // ms a door must have been open to count
 	stuck: number; // ms to wait for the OPEN event
@@ -44,9 +46,12 @@ export function parseParams(search: string): Params {
 	const locale = q.get("locale")?.trim().toLowerCase();
 	const lang = explicit === "en" || explicit === "de" ? explicit : locale ? (locale.startsWith("de") ? "de" : "en") : "de";
 	const langs = q.get("languages")?.toLowerCase().split(",").map(l => l.trim().slice(0, 2));
+	const parallel = clamp(int(q.get("parallel"), 3), 1, 8);
 	return {
 		time: clamp(int(q.get("time"), 60), 10, 600),
-		parallel: clamp(int(q.get("parallel"), 2), 1, 3),
+		parallel,
+		maxparallel: clamp(int(q.get("maxparallel"), 6), parallel, 8),
+		step: clamp(int(q.get("step"), 5), 1, 100),
 		boxes: parseBoxes(q.get("boxes")),
 		minopen: clamp(int(q.get("minopen"), 400), 0, 5000),
 		stuck: clamp(int(q.get("stuck"), 4000), 500, 60000),
@@ -64,6 +69,11 @@ export function eligibleBoxes(boxes: Boxes, comps: Comp[]): string[] {
 		.filter(c => c.enabled === true && !(c.types ?? []).some(t => String(t).toLowerCase() === "master"))
 		.map(c => c.number)
 		.filter(n => !Array.isArray(boxes) || boxes.includes(n));
+}
+
+/** Doors to keep open: starts at `parallel`, +1 every `step` points, capped by `maxparallel` and by playable-1 (one box always stays closed). */
+export function doorsFor(score: number, p: Pick<Params, "parallel" | "maxparallel" | "step">, playable: number): number {
+	return Math.max(1, Math.min(p.parallel + Math.floor(score / p.step), p.maxparallel, playable - 1));
 }
 
 /** Random playable box that is not in `busy`; avoids `last` if anything else is left. */

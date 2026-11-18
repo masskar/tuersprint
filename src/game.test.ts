@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import {insertScore, parseBoxes, parseParams, parseScores, pickNext, eligibleBoxes, rankOf, type Score} from "./game.ts";
+import {doorsFor, insertScore, parseBoxes, parseParams, parseScores, pickNext, eligibleBoxes, rankOf, type Score} from "./game.ts";
 
 // boxes
 assert.deepEqual(parseBoxes("2-4,7"), ["2", "3", "4", "7"]);
@@ -12,9 +12,16 @@ assert.equal(parseBoxes(",,"), null);
 assert.equal(parseBoxes("1-99999"), null);
 
 // params
-assert.deepEqual(parseParams(""), {time: 60, parallel: 2, boxes: null, minopen: 400, stuck: 4000, lang: "de", canSwitch: true, debug: false});
-const p = parseParams("?time=1&parallel=9&boxes=1-3&minopen=-5&stuck=x&lang=fr&debug=1");
-assert.deepEqual(p, {time: 10, parallel: 3, boxes: ["1", "2", "3"], minopen: 0, stuck: 4000, lang: "de", canSwitch: true, debug: true});
+assert.deepEqual(parseParams(""), {time: 60, parallel: 3, maxparallel: 6, step: 5, boxes: null, minopen: 400, stuck: 4000, lang: "de", canSwitch: true, debug: false});
+const p = parseParams("?time=1&parallel=9&maxparallel=2&step=0&boxes=1-3&minopen=-5&stuck=x&lang=fr&debug=1");
+assert.deepEqual(p, {time: 10, parallel: 8, maxparallel: 8, step: 1, boxes: ["1", "2", "3"], minopen: 0, stuck: 4000, lang: "de", canSwitch: true, debug: true});
+// ramp: 3 doors at start, +1 per 5 points, capped at maxparallel and at playable-1
+const R = {parallel: 3, maxparallel: 6, step: 5};
+assert.equal(doorsFor(0, R, 12), 3);
+assert.equal(doorsFor(4, R, 12), 3);
+assert.equal(doorsFor(5, R, 12), 4);
+assert.equal(doorsFor(99, R, 12), 6);
+assert.equal(doorsFor(99, R, 5), 4);
 assert.equal(parseParams("?time=9999").time, 600);
 assert.equal(parseParams("?minopen=99999").minopen, 5000);
 assert.equal(parseParams("?locale=en-GB").lang, "en");

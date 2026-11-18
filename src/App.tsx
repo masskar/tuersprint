@@ -1,6 +1,6 @@
 import {useCompartments, useConnected, useCube, useLockEvent} from "@variocube/cube-app-react-sdk";
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
-import {insertScore, parseParams, parseScores, pickNext, eligibleBoxes, rankOf, type Score} from "./game.ts";
+import {doorsFor, insertScore, parseParams, parseScores, pickNext, eligibleBoxes, rankOf, type Score} from "./game.ts";
 
 const P = parseParams(window.location.search);
 
@@ -154,7 +154,8 @@ export function App() {
 		if (r.phase !== "play") return;
 		const usable = r.playable.filter(b => !r.dead.has(b));
 		if (usable.length < P.parallel) return fail();
-		while (r.active.size < P.parallel) {
+		const want = doorsFor(r.score, P, usable.length);
+		while (r.active.size < want) {
 			const busy = new Set([...r.active.keys(), ...r.open, ...r.dead]);
 			const box = pickNext(usable, busy, r.last);
 			if (!box) break; // all remaining boxes are open right now; the tick retries
