@@ -7,7 +7,7 @@ h2 { font-size: 5vmin; margin: 0; color: var(--accent); }
 p { margin: 0; }
 small { font-size: .5em; font-weight: 600; opacity: .8; }
 button { font: inherit; color: var(--fg); border: 0; cursor: pointer; }
-.logo { height: max(5.2vmin, 24px); width: auto; display: block; pointer-events: none; }
+.logo { height: max(7.8vmin, 34px); width: auto; display: block; pointer-events: none; }
 .big { background: var(--accent); color: #fff; font-size: 5vmin; font-weight: 700; padding: 2.4vmin 8vmin; border-radius: 3vmin; box-shadow: 0 .8vmin 0 #b24a00; }
 .big:active { transform: translateY(.5vmin); box-shadow: 0 .3vmin 0 #b24a00; }
 .big:disabled { background: #3a4060; box-shadow: none; opacity: .5; }
@@ -25,7 +25,7 @@ button { font: inherit; color: var(--fg); border: 0; cursor: pointer; }
 .top { background: var(--panel); border: .5vmin solid var(--line); border-radius: 3vmin; padding: 2vmin 3vmin; min-height: 0; }
 .top h2 { font-size: 3.6vmin; margin-bottom: 1vmin; }
 .top ol { list-style: none; margin: 0; padding: 0; font-size: 3vmin; font-weight: 700; font-variant-numeric: tabular-nums; }
-.top li { display: grid; grid-template-columns: 5vmin 1fr auto; padding: .35vmin 1vmin; border-radius: 1.2vmin; letter-spacing: .15em; }
+.top li { display: grid; grid-template-columns: 7vmin 1fr auto; column-gap: 1vmin; padding: .35vmin 1vmin; border-radius: 1.2vmin; letter-spacing: .15em; }
 .top li i { font-style: normal; opacity: .55; }
 .top li b { color: var(--accent); }
 .top li.me { background: var(--accent); } .top li.me b, .top li.me i { color: #fff; opacity: 1; }
