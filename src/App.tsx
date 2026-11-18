@@ -1,5 +1,7 @@
+/// <reference types="vite/client" />
 import {useCompartments, useConnected, useCube, useLockEvent} from "@variocube/cube-app-react-sdk";
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
+import logo from "./variocube-logo.svg"; // official VC_LOGO_RGB_White_On_Alpha
 import {doorsFor, insertScore, parseParams, parseScores, pickNext, eligibleBoxes, rankOf, type Score} from "./game.ts";
 
 const P = parseParams(window.location.search);
@@ -300,7 +302,7 @@ export function App() {
 	return (
 		<main>
 			<h1 onPointerDown={titleDown} onPointerUp={titleUp} onPointerLeave={titleUp} onPointerCancel={titleUp}>
-				<span className="dial" />{T.title}
+				<img className="logo" src={logo} alt="VARIOCUBE" draggable={false} />
 			</h1>
 			{langBox}
 

@@ -7,8 +7,7 @@ h2 { font-size: 5vmin; margin: 0; color: var(--accent); }
 p { margin: 0; }
 small { font-size: .5em; font-weight: 600; opacity: .8; }
 button { font: inherit; color: var(--fg); border: 0; cursor: pointer; }
-.dial { width: 4.6vmin; height: 4.6vmin; border-radius: 50%; border: .5vmin solid var(--accent);
-	background: repeating-conic-gradient(var(--accent) 0 2deg, transparent 2deg 15deg); }
+.logo { height: max(5.2vmin, 24px); width: auto; display: block; pointer-events: none; }
 .big { background: var(--accent); color: #fff; font-size: 5vmin; font-weight: 700; padding: 2.4vmin 8vmin; border-radius: 3vmin; box-shadow: 0 .8vmin 0 #b24a00; }
 .big:active { transform: translateY(.5vmin); box-shadow: 0 .3vmin 0 #b24a00; }
 .big:disabled { background: #3a4060; box-shadow: none; opacity: .5; }
