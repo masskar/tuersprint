@@ -12,6 +12,9 @@ export interface Params {
 	lang: "de" | "en";
 	canSwitch: boolean;
 	debug: boolean;
+	controller: string; // host of the controller that verifies service codes
+	controllerport: number;
+	svcidle: number; // ms of no touch before Service mode exits (shortenable only with debug=1)
 }
 
 export interface Score {name: string; score: number; date: string}
@@ -47,6 +50,7 @@ export function parseParams(search: string): Params {
 	const lang = explicit === "en" || explicit === "de" ? explicit : locale ? (locale.startsWith("de") ? "de" : "en") : "de";
 	const langs = q.get("languages")?.toLowerCase().split(",").map(l => l.trim().slice(0, 2));
 	const parallel = clamp(int(q.get("parallel"), 3), 1, 8);
+	const debug = q.get("debug") === "1";
 	return {
 		time: clamp(int(q.get("time"), 60), 10, 600),
 		parallel,
@@ -57,7 +61,10 @@ export function parseParams(search: string): Params {
 		stuck: clamp(int(q.get("stuck"), 4000), 500, 60000),
 		lang,
 		canSwitch: !langs || (langs.includes("de") && langs.includes("en")),
-		debug: q.get("debug") === "1",
+		debug,
+		controller: /^[A-Za-z0-9.-]{1,253}$/.test(q.get("controller") ?? "") ? q.get("controller")! : "localhost",
+		controllerport: clamp(int(q.get("controllerport"), 9000), 1, 65535),
+		svcidle: debug ? clamp(int(q.get("svcidle"), 120), 1, 3600) * 1000 : 120_000,
 	};
 }
 
@@ -108,5 +115,30 @@ export function parseScores(raw: string | null): Score[] {
 			: [];
 	} catch {
 		return [];
+	}
+}
+
+/** Service-code lockout: 5 wrong codes lock the code screen for 60 s. */
+export interface Lock {fails: number; until: number}
+export const MAX_FAILS = 5;
+export const LOCK_MS = 60_000;
+export const NO_LOCK: Lock = {fails: 0, until: 0};
+
+/** State after a code attempt (`ok` = the controller answered "wrong"/"right"; network errors must not call this). */
+export function nextLock(s: Lock, now: number, ok: boolean): Lock {
+	if (ok) return NO_LOCK;
+	const fails = s.fails + 1;
+	return fails >= MAX_FAILS ? {fails: 0, until: now + LOCK_MS} : {fails, until: s.until};
+}
+
+/** Seconds of lockout left (0 = unlocked). */
+export const lockLeft = (s: Lock, now: number) => Math.max(0, Math.ceil((s.until - now) / 1000));
+
+export function parseLock(raw: string | null): Lock {
+	try {
+		const o = JSON.parse(raw ?? "null");
+		return Number.isFinite(o?.fails) && Number.isFinite(o?.until) ? {fails: o.fails, until: o.until} : NO_LOCK;
+	} catch {
+		return NO_LOCK;
 	}
 }

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import {doorsFor, insertScore, parseBoxes, parseParams, parseScores, pickNext, eligibleBoxes, rankOf, type Score} from "./game.ts";
+import {doorsFor, insertScore, lockLeft, MAX_FAILS, LOCK_MS, NO_LOCK, nextLock, parseLock, parseBoxes, parseParams, parseScores, pickNext, eligibleBoxes, rankOf, type Lock, type Score} from "./game.ts";
 
 // boxes
 assert.deepEqual(parseBoxes("2-4,7"), ["2", "3", "4", "7"]);
@@ -12,9 +12,9 @@ assert.equal(parseBoxes(",,"), null);
 assert.equal(parseBoxes("1-99999"), null);
 
 // params
-assert.deepEqual(parseParams(""), {time: 60, parallel: 3, maxparallel: 6, step: 5, boxes: null, minopen: 400, stuck: 4000, lang: "de", canSwitch: true, debug: false});
+assert.deepEqual(parseParams(""), {time: 60, parallel: 3, maxparallel: 6, step: 5, boxes: null, minopen: 400, stuck: 4000, lang: "de", canSwitch: true, debug: false, controller: "localhost", controllerport: 9000, svcidle: 120_000});
 const p = parseParams("?time=1&parallel=9&maxparallel=2&step=0&boxes=1-3&minopen=-5&stuck=x&lang=fr&debug=1");
-assert.deepEqual(p, {time: 10, parallel: 8, maxparallel: 8, step: 1, boxes: ["1", "2", "3"], minopen: 0, stuck: 4000, lang: "de", canSwitch: true, debug: true});
+assert.deepEqual(p, {time: 10, parallel: 8, maxparallel: 8, step: 1, boxes: ["1", "2", "3"], minopen: 0, stuck: 4000, lang: "de", canSwitch: true, debug: true, controller: "localhost", controllerport: 9000, svcidle: 120_000});
 // ramp: 3 doors at start, +1 per 5 points, capped at maxparallel and at playable-1
 const R = {parallel: 3, maxparallel: 6, step: 5};
 assert.equal(doorsFor(0, R, 12), 3);
@@ -67,5 +67,23 @@ assert.equal(insertScore(l, mk(1)), l);
 assert.deepEqual(parseScores("garbage"), []);
 assert.deepEqual(parseScores(null), []);
 assert.deepEqual(parseScores('[{"name":"A","score":1,"date":"x"},{"x":1}]').length, 1);
+
+// service: params + lockout
+let q = parseParams("");
+assert.equal(q.controller, "localhost"); assert.equal(q.controllerport, 9000); assert.equal(q.svcidle, 120_000);
+q = parseParams("?controller=10.1.2.3&controllerport=9001&svcidle=3");
+assert.equal(q.controller, "10.1.2.3"); assert.equal(q.controllerport, 9001); assert.equal(q.svcidle, 120_000); // svcidle needs debug=1
+assert.equal(parseParams("?debug=1&svcidle=3").svcidle, 3000);
+assert.equal(parseParams("?controllerport=0").controllerport, 1);
+assert.equal(parseParams("?controllerport=99999").controllerport, 65535);
+assert.equal(parseParams("?controllerport=x").controllerport, 9000);
+assert.equal(parseParams("?controller=evil.com/x@y").controller, "localhost");
+let lk: Lock = NO_LOCK;
+for (let i = 1; i < MAX_FAILS; i++) { lk = nextLock(lk, 1000, false); assert.equal(lk.fails, i); assert.equal(lockLeft(lk, 1000), 0); }
+lk = nextLock(lk, 1000, false);
+assert.equal(lk.until, 1000 + LOCK_MS); assert.equal(lockLeft(lk, 1000), 60); assert.equal(lockLeft(lk, 1000 + 59_001), 1); assert.equal(lockLeft(lk, 1000 + LOCK_MS), 0);
+assert.deepEqual(nextLock({fails: 3, until: 0}, 5, true), NO_LOCK);
+assert.deepEqual(parseLock(JSON.stringify(lk)), lk);
+assert.deepEqual(parseLock("garbage"), NO_LOCK); assert.deepEqual(parseLock(null), NO_LOCK);
 
 console.log("game.test.ts: ok");
