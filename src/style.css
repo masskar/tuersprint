@@ -17,7 +17,11 @@ button { font: inherit; color: var(--fg); border: 0; cursor: pointer; }
 
 /* start + shared top list */
 .start, .result { flex: 1; min-height: 0; width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 2vmin 4vmin; padding: 1vmin 3vmin 3vmin; align-items: center; }
-.start { grid-template-rows: 1fr auto; }
+.start { grid-template-rows: auto 1fr auto; }
+.hero { grid-column: 1 / -1; text-align: center; display: flex; flex-direction: column; align-items: center; gap: .6vmin; }
+.hero p { font-size: 5.4vmin; font-weight: 800; line-height: 1.15; }
+.hero p b { color: var(--accent); }
+.hero small { font-size: 2.8vmin; font-weight: 600; opacity: .7; }
 .howto h2 { margin-bottom: 2.4vmin; }
 .steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2.4vmin; font-size: 3.8vmin; font-weight: 600; }
 .steps li { display: flex; align-items: center; gap: 2vmin; }
@@ -132,7 +136,7 @@ button { font: inherit; color: var(--fg); border: 0; cursor: pointer; }
 /* portrait */
 @media (max-aspect-ratio: 11/10) {
 	.start, .result { grid-template-columns: 1fr; grid-template-rows: none; align-content: center; gap: 4vmin; }
-	.start .go { grid-column: 1; }
+	.start .go, .hero { grid-column: 1; }
 	.howto { justify-self: center; }
 	.time b, .score b { font-size: 14vmin; }
 	.pad { grid-template-columns: repeat(3, 24vmin); } .pad button { height: 12vmin; }

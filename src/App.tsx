@@ -10,7 +10,9 @@ const TEXT = {
 	de: {
 		title: "Türsprint", howto: "So geht's",
 		steps: ["Türen springen auf", "So schnell wie möglich zuklappen", `${P.time} Sekunden – wie viele schaffst du?`],
-		start: "Spiel starten", soon: "Gleich geht's los …", offline: "Nicht verbunden",
+		start: "Jetzt spielen!", soon: "Gleich geht's los …", offline: "Nicht verbunden",
+		tag: "SPIEL:", challenge: (n: number) => (n ? `Schaffst du mehr als ${n} Türen?` : `Wie viele Türen schaffst du in ${P.time} Sekunden?`),
+		holder: (name: string) => `Rekord hält: ${name} · ${P.time} Sekunden`,
 		setup: "Einrichtung nötig", setupHow: "Zu wenige spielbare Fächer", setupMore: (n: number) => `Mindestens ${n} Fächer nötig (Fächer per boxes=… einschränken oder freigeben).`,
 		top: "Bestenliste", none: "Noch kein Eintrag – sei der Erste!",
 		go: "Los!", time: "Zeit", points: "Punkte", close: "ZU!", quit: "Abbrechen", hold: "gedrückt halten",
@@ -27,7 +29,9 @@ const TEXT = {
 	en: {
 		title: "Door Sprint", howto: "How to play",
 		steps: ["Doors pop open", "Slam them shut as fast as you can", `${P.time} seconds – how many can you do?`],
-		start: "Start game", soon: "Starting soon …", offline: "Not connected",
+		start: "Play now!", soon: "Starting soon …", offline: "Not connected",
+		tag: "GAME:", challenge: (n: number) => (n ? `Can you beat ${n} doors?` : `How many doors can you close in ${P.time} seconds?`),
+		holder: (name: string) => `Record holder: ${name} · ${P.time} seconds`,
 		setup: "Setup required", setupHow: "Too few playable compartments", setupMore: (n: number) => `At least ${n} compartments needed (check boxes=…).`,
 		top: "High scores", none: "No entry yet – be the first!",
 		go: "Go!", time: "Time", points: "Score", close: "CLOSE!", quit: "Cancel", hold: "hold to cancel",
@@ -397,6 +401,10 @@ export function App() {
 
 			{phase === "start" && (
 				<section className="start">
+					<div className="hero">
+						<p><b>{T.tag}</b> {T.challenge(scores[0]?.score ?? 0)}</p>
+						{scores[0] && scores[0].name !== "???" && <small>{T.holder(scores[0].name)}</small>}
+					</div>
 					<div className="howto">
 						<h2>{T.howto}</h2>
 						<ol className="steps">
