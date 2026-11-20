@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import {doorsFor, insertScore, lockLeft, MAX_FAILS, LOCK_MS, NO_LOCK, nextLock, parseLock, parseBoxes, parseParams, parseScores, pickNext, eligibleBoxes, rankOf, type Lock, type Score} from "./game.ts";
+import {doorsFor, toCommand, insertScore, lockLeft, MAX_FAILS, LOCK_MS, NO_LOCK, nextLock, parseLock, parseBoxes, parseParams, parseScores, pickNext, eligibleBoxes, rankOf, type Lock, type Score} from "./game.ts";
 
 // boxes
 assert.deepEqual(parseBoxes("2-4,7"), ["2", "3", "4", "7"]);
@@ -12,9 +12,9 @@ assert.equal(parseBoxes(",,"), null);
 assert.equal(parseBoxes("1-99999"), null);
 
 // params
-assert.deepEqual(parseParams(""), {time: 60, parallel: 3, maxparallel: 6, step: 5, boxes: null, minopen: 400, stuck: 4000, lang: "de", canSwitch: true, debug: false, controller: "localhost", controllerport: 9000, svcidle: 120_000});
+assert.deepEqual(parseParams(""), {time: 60, parallel: 3, maxparallel: 6, step: 5, boxes: null, minopen: 400, stuck: 10000, inflight: 2, endstop: 3000, lang: "de", canSwitch: true, debug: false, controller: "localhost", controllerport: 9000, svcidle: 120_000});
 const p = parseParams("?time=1&parallel=9&maxparallel=2&step=0&boxes=1-3&minopen=-5&stuck=x&lang=fr&debug=1");
-assert.deepEqual(p, {time: 10, parallel: 8, maxparallel: 8, step: 1, boxes: ["1", "2", "3"], minopen: 0, stuck: 4000, lang: "de", canSwitch: true, debug: true, controller: "localhost", controllerport: 9000, svcidle: 120_000});
+assert.deepEqual(p, {time: 10, parallel: 8, maxparallel: 8, step: 1, boxes: ["1", "2", "3"], minopen: 0, stuck: 10000, inflight: 2, endstop: 3000, lang: "de", canSwitch: true, debug: true, controller: "localhost", controllerport: 9000, svcidle: 120_000});
 // ramp: 3 doors at start, +1 per 5 points, capped at maxparallel and at playable-1
 const R = {parallel: 3, maxparallel: 6, step: 5};
 assert.equal(doorsFor(0, R, 12), 3);
@@ -22,6 +22,14 @@ assert.equal(doorsFor(4, R, 12), 3);
 assert.equal(doorsFor(5, R, 12), 4);
 assert.equal(doorsFor(99, R, 12), 6);
 assert.equal(doorsFor(99, R, 5), 4);
+// pacing: never more than `inflight` commands waiting for OPEN
+assert.equal(toCommand(3, 0, 0, 2), 2);
+assert.equal(toCommand(3, 0, 2, 2), 0);
+assert.equal(toCommand(3, 1, 1, 2), 1);
+assert.equal(toCommand(3, 3, 0, 2), 0);
+assert.equal(toCommand(6, 5, 2, 2), 0);
+assert.equal(parseParams("?inflight=0&endstop=-1").inflight, 1);
+assert.equal(parseParams("?endstop=99999").endstop, 30000);
 assert.equal(parseParams("?time=9999").time, 600);
 assert.equal(parseParams("?minopen=99999").minopen, 5000);
 assert.equal(parseParams("?locale=en-GB").lang, "en");

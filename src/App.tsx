@@ -2,7 +2,7 @@
 import {useCompartments, useConnected, useCube, useLockEvent} from "@variocube/cube-app-react-sdk";
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import logo from "./variocube-logo.svg"; // official VC_LOGO_RGB_White_On_Alpha
-import {doorsFor, insertScore, lockLeft, nextLock, parseLock, parseParams, parseScores, pickNext, eligibleBoxes, rankOf, type Lock, type Score} from "./game.ts";
+import {doorsFor, toCommand, insertScore, lockLeft, nextLock, parseLock, parseParams, parseScores, pickNext, eligibleBoxes, rankOf, type Lock, type Score} from "./game.ts";
 
 const P = parseParams(window.location.search);
 
@@ -87,8 +87,6 @@ const LETTERS = Array.from({length: 26}, (_, i) => String.fromCharCode(65 + i));
 const load = () => { try { return parseScores(localStorage.getItem(KEY)); } catch { return []; } };
 const save = (l: Score[]) => { try { localStorage.setItem(KEY, JSON.stringify(l)); } catch { /* storage unavailable: list is session-only */ } };
 
-type Act = {openedAt: number | null; timer: number};
-
 /** Best column count so square-ish cells fill a w x h area. */
 function gridCols(n: number, w: number, h: number) {
 	let best = 1, size = 0;
@@ -148,8 +146,10 @@ export function App() {
 	// engine state lives in refs: lock events and timers must see the latest values
 	const R = useRef({
 		playable, phase, score: 0, last: null as string | null,
-		active: new Map<string, Act>(), open: new Set<string>(), commanded: new Set<string>(), dead: new Set<string>(),
-		openedByGame: new Set<string>(), endedAt: 0, scores,
+		// pending: commanded, no OPEN yet (box -> sent at); live: open during play (box -> opened at)
+		pending: new Map<string, number>(), live: new Map<string, number>(),
+		open: new Set<string>(), commanded: new Set<string>(), dead: new Map<string, number>(), // dead: box -> parked at
+		openedByGame: new Set<string>(), endedAt: 0, end: 0, scores,
 	});
 	R.current.playable = playable; R.current.phase = phase; R.current.scores = scores;
 
@@ -157,10 +157,10 @@ export function App() {
 		const r = R.current;
 		setStillOpen([...r.openedByGame].filter(b => r.open.has(b)).sort((a, b) => a.localeCompare(b, undefined, {numeric: true})));
 	}, []);
-	const syncView = () => setView([...R.current.active.keys()]);
+	const syncView = () => setView([...R.current.live.keys()]);
 	const clearActive = () => {
-		R.current.active.forEach(a => clearTimeout(a.timer));
-		R.current.active.clear();
+		R.current.pending.clear();
+		R.current.live.clear();
 		setView([]);
 	};
 	const fail = useCallback(() => {
@@ -168,47 +168,40 @@ export function App() {
 		setPhase("error");
 	}, []);
 
-	const activate = (box: string) => {
+	// a box that did not report OPEN is parked in `dead` for P.stuck (no re-send while it may still be queued); a late OPEN still counts
+	const park = (box: string) => {
 		const r = R.current;
-		const a: Act = {openedAt: null, timer: 0};
-		a.timer = window.setTimeout(() => { // no OPEN event: door blocked or command lost, give up on it
-			if (r.active.get(box) === a) {
-				r.active.delete(box);
-				r.last = box;
-				syncView();
-				fill();
-			}
-		}, P.stuck);
-		r.active.set(box, a);
-		r.commanded.add(box);
-		(async () => {
-			try {
-				await cube.openCompartment(box);
-			} catch {
-				console.error("tuersprint: openCompartment failed, box", box); // number only
-				clearTimeout(a.timer);
-				r.dead.add(box);
-				if (r.active.get(box) === a) r.active.delete(box);
-				syncView();
-				fill();
-			}
-		})();
+		if (r.pending.delete(box)) r.dead.set(box, Date.now());
 	};
 
-	// keep exactly P.parallel doors active; ends the game if too few boxes remain usable
+	const activate = (box: string) => {
+		const r = R.current;
+		r.pending.set(box, Date.now());
+		r.commanded.add(box);
+		cube.openCompartment(box).catch(() => {
+			console.error("tuersprint: openCompartment failed, box", box); // number only
+			park(box);
+		});
+	};
+
+	// The lock controller opens doors one by one (~1/s). Keep only P.inflight commands waiting, never re-send a box
+	// that has not opened yet, and stop opening shortly before the end so nothing pops open after the game.
 	const fill = () => {
 		const r = R.current;
 		if (r.phase !== "play") return;
+		const now = Date.now();
+		r.dead.forEach((at, box) => { if (now - at > P.stuck) r.dead.delete(box); });
+		r.pending.forEach((at, box) => { if (now - at > P.stuck) park(box); });
 		const usable = r.playable.filter(b => !r.dead.has(b));
 		if (usable.length < P.parallel) return fail();
-		const want = doorsFor(r.score, P, usable.length);
-		while (r.active.size < want) {
-			const busy = new Set([...r.active.keys(), ...r.open, ...r.dead]);
+		if (r.end - now < P.endstop) return;
+		let n = toCommand(doorsFor(r.score, P, usable.length), r.live.size, r.pending.size, P.inflight);
+		while (n-- > 0) {
+			const busy = new Set([...r.live.keys(), ...r.pending.keys(), ...r.open, ...r.dead.keys()]);
 			const box = pickNext(usable, busy, r.last);
-			if (!box) break; // all remaining boxes are open right now; the tick retries
+			if (!box) break; // all remaining boxes are busy right now; the tick retries
 			activate(box);
 		}
-		syncView();
 	};
 
 	const begin = () => {
@@ -255,6 +248,7 @@ export function App() {
 	useEffect(() => {
 		if (phase !== "play") return;
 		const end = Date.now() + P.time * 1000;
+		R.current.end = end;
 		fill();
 		const i = window.setInterval(() => {
 			const l = end - Date.now();
@@ -306,18 +300,23 @@ export function App() {
 		if (status === "OPEN") {
 			r.open.add(box);
 			if (r.commanded.has(box)) r.openedByGame.add(box);
-			const a = r.active.get(box);
-			if (a && a.openedAt === null) { a.openedAt = now; clearTimeout(a.timer); }
+			// pending, or parked and opened late: it is a game door now
+			if (r.phase === "play" && (r.pending.delete(box) || r.dead.delete(box)) && r.commanded.has(box)) {
+				r.live.set(box, now);
+				syncView();
+			}
 		} else if (status === "CLOSED") {
 			r.open.delete(box);
-			const a = r.active.get(box);
-			if (a && a.openedAt !== null && r.phase === "play") {
-				clearTimeout(a.timer);
-				r.active.delete(box);
+			const at = r.live.get(box);
+			if (at !== undefined && r.phase === "play") {
+				r.live.delete(box);
 				r.last = box;
-				if (now - a.openedAt >= P.minopen) { r.score++; setScore(r.score); }
+				if (now - at >= P.minopen) { r.score++; setScore(r.score); }
+				syncView();
 				fill();
 			}
+		} else if (status === "BLOCKED" && r.phase === "play") {
+			park(box); // controller gave up on this door
 		}
 		syncOpen();
 	});

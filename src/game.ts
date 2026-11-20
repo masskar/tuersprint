@@ -8,7 +8,9 @@ export interface Params {
 	step: number; // points per extra open door
 	boxes: Boxes;
 	minopen: number; // ms a door must have been open to count
-	stuck: number; // ms to wait for the OPEN event
+	stuck: number; // ms to wait for the OPEN event before the box stops holding a command slot
+	inflight: number; // max open commands waiting for their OPEN event (Gantner opens ~1 door/s, serially)
+	endstop: number; // ms before the end in which no new doors are opened
 	lang: "de" | "en";
 	canSwitch: boolean;
 	debug: boolean;
@@ -58,7 +60,9 @@ export function parseParams(search: string): Params {
 		step: clamp(int(q.get("step"), 5), 1, 100),
 		boxes: parseBoxes(q.get("boxes")),
 		minopen: clamp(int(q.get("minopen"), 400), 0, 5000),
-		stuck: clamp(int(q.get("stuck"), 4000), 500, 60000),
+		stuck: clamp(int(q.get("stuck"), 10000), 500, 60000),
+		inflight: clamp(int(q.get("inflight"), 2), 1, 8),
+		endstop: clamp(int(q.get("endstop"), 3000), 0, 30000),
 		lang,
 		canSwitch: !langs || (langs.includes("de") && langs.includes("en")),
 		debug,
@@ -81,6 +85,11 @@ export function eligibleBoxes(boxes: Boxes, comps: Comp[]): string[] {
 /** Doors to keep open: starts at `parallel`, +1 every `step` points, capped by `maxparallel` and by playable-1 (one box always stays closed). */
 export function doorsFor(score: number, p: Pick<Params, "parallel" | "maxparallel" | "step">, playable: number): number {
 	return Math.max(1, Math.min(p.parallel + Math.floor(score / p.step), p.maxparallel, playable - 1));
+}
+
+/** How many new open commands to send now: fill up to `want` doors (open + waiting), but never more than `inflight` waiting. */
+export function toCommand(want: number, open: number, waiting: number, inflight: number): number {
+	return Math.max(0, Math.min(want - open - waiting, inflight - waiting));
 }
 
 /** Random playable box that is not in `busy`; avoids `last` if anything else is left. */
